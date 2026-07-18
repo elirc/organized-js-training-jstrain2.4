@@ -1,0 +1,434 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  DEPLOYER
+  VIEWER
+}
+
+enum DeploymentStatus {
+  BUILDING
+  DEPLOYING
+  LIVE
+  FAILED
+  ROLLED_BACK
+}
+
+enum EnvironmentType {
+  DEV
+  STAGING
+  PRODUCTION
+}
+
+enum LogSeverity {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+enum IncidentStatus {
+  OPEN
+  RESOLVED
+}
+
+enum AlertCondition {
+  GT
+  GTE
+  LT
+  LTE
+}
+
+enum FeatureFlagType {
+  BOOLEAN
+  STRING
+  JSON
+}
+
+model Organization {
+  id        String          @id @default(uuid())
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  teams     Team[]
+  auditLogs AuditLogEntry[]
+}
+
+model Team {
+  id             String          @id @default(uuid())
+  name           String
+  organizationId String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  members        TeamMember[]
+  applications   Application[]
+  auditLogs      AuditLogEntry[]
+
+  @@unique([organizationId, name])
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  ssoProvider    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  memberships    TeamMember[]
+  deployments    Deployment[]    @relation("DeploymentActor")
+  secretVersions SecretVersion[]
+  auditLogs      AuditLogEntry[]
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      UserRole @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model Application {
+  id           String             @id @default(uuid())
+  teamId       String
+  name         String
+  repoUrl      String
+  buildCommand String
+  startCommand String
+  deployFrozen Boolean            @default(false)
+  freezeReason String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  team         Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  environments Environment[]
+  domains      Domain[]
+  pipelines    Pipeline[]
+  deployments  Deployment[]
+  metrics      MonitoringMetric[]
+  alertRules   AlertRule[]
+  alerts       Alert[]
+  featureFlags FeatureFlag[]
+  segments     FlagSegment[]
+  secrets      Secret[]
+  secretUsages SecretUsage[]
+  incidents    Incident[]
+  auditLogs    AuditLogEntry[]
+}
+
+model Environment {
+  id            String                @id @default(uuid())
+  applicationId String
+  name          String
+  slug          String
+  type          EnvironmentType
+  deployLocked  Boolean               @default(false)
+  lockReason    String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  application   Application           @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  variables     EnvironmentVariable[]
+  deployments   Deployment[]
+  metrics       MonitoringMetric[]
+  flagRules     FlagRule[]
+  secretUsages  SecretUsage[]
+  auditLogs     AuditLogEntry[]
+
+  @@unique([applicationId, slug])
+}
+
+model EnvironmentVariable {
+  id            String      @id @default(uuid())
+  environmentId String
+  key           String
+  value         String
+  isSecret      Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  environment   Environment @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+
+  @@unique([environmentId, key])
+}
+
+model Pipeline {
+  id            String          @id @default(uuid())
+  applicationId String
+  name          String
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  stages        PipelineStage[]
+  deployments   Deployment[]
+}
+
+model PipelineStage {
+  id               String         @id @default(uuid())
+  pipelineId       String
+  name             String
+  stageOrder       Int
+  requiresApproval Boolean        @default(false)
+  autoRollback     Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  pipeline         Pipeline       @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  steps            PipelineStep[]
+
+  @@unique([pipelineId, stageOrder])
+}
+
+model PipelineStep {
+  id             String        @id @default(uuid())
+  stageId        String
+  name           String
+  command        String
+  stepOrder      Int
+  runInParallel  Boolean       @default(false)
+  timeoutSeconds Int           @default(600)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  stage          PipelineStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@unique([stageId, stepOrder])
+}
+
+model Domain {
+  id            String      @id @default(uuid())
+  applicationId String
+  host          String      @unique
+  verified      Boolean     @default(false)
+  sslEnabled    Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model Deployment {
+  id               String           @id @default(uuid())
+  applicationId    String
+  environmentId    String
+  pipelineId       String?
+  actorUserId      String?
+  version          String
+  commitSha        String
+  commitMessage    String
+  status           DeploymentStatus
+  diffSummary      String?
+  rollbackOfId     String?
+  promotedFromId   String?
+  startedAt        DateTime         @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  application      Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  environment      Environment      @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  pipeline         Pipeline?        @relation(fields: [pipelineId], references: [id], onDelete: SetNull)
+  actor            User?            @relation("DeploymentActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  logs             DeploymentLog[]
+  incidents        Incident[]
+  rollbackOf       Deployment?      @relation("DeploymentRollback", fields: [rollbackOfId], references: [id], onDelete: SetNull)
+  rollbackChildren Deployment[]     @relation("DeploymentRollback")
+  promotedFrom     Deployment?      @relation("DeploymentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
+  promotedTo       Deployment[]     @relation("DeploymentPromotion")
+
+  @@index([applicationId, environmentId, createdAt])
+}
+
+model DeploymentLog {
+  id           String      @id @default(uuid())
+  deploymentId String
+  service      String
+  severity     LogSeverity
+  message      String
+  timestamp    DateTime    @default(now())
+  deployment   Deployment  @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@index([deploymentId, timestamp])
+}
+
+model MonitoringMetric {
+  id             String       @id @default(uuid())
+  applicationId  String
+  environmentId  String?
+  timestamp      DateTime     @default(now())
+  uptimePct      Float
+  responseTimeMs Float
+  errorRatePct   Float
+  cpuPct         Float
+  memoryMb       Float
+  application    Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  environment    Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, timestamp])
+}
+
+model AlertRule {
+  id              String         @id @default(uuid())
+  applicationId   String
+  name            String
+  metric          String
+  condition       AlertCondition
+  threshold       Float
+  durationMinutes Int
+  enabled         Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  application     Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  alerts          Alert[]
+}
+
+model Alert {
+  id            String         @id @default(uuid())
+  applicationId String
+  alertRuleId   String
+  message       String
+  status        IncidentStatus @default(OPEN)
+  triggeredAt   DateTime       @default(now())
+  resolvedAt    DateTime?
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  alertRule     AlertRule      @relation(fields: [alertRuleId], references: [id], onDelete: Cascade)
+}
+
+model FeatureFlag {
+  id            String           @id @default(uuid())
+  applicationId String
+  key           String
+  type          FeatureFlagType
+  description   String?
+  defaultValue  String
+  enabled       Boolean          @default(true)
+  killSwitch    Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  application   Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  rules         FlagRule[]
+  dependencies  FlagDependency[] @relation("FlagDependencies")
+  requiredBy    FlagDependency[] @relation("FlagRequiredBy")
+
+  @@unique([applicationId, key])
+}
+
+model FlagRule {
+  id            String       @id @default(uuid())
+  featureFlagId String
+  environmentId String?
+  segmentId     String?
+  rolloutPct    Int          @default(100)
+  value         String
+  enabled       Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  featureFlag   FeatureFlag  @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  segment       FlagSegment? @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+}
+
+model FlagSegment {
+  id            String      @id @default(uuid())
+  applicationId String
+  name          String
+  criteriaJson  String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  rules         FlagRule[]
+}
+
+model FlagDependency {
+  id              String      @id @default(uuid())
+  featureFlagId   String
+  dependsOnFlagId String
+  createdAt       DateTime    @default(now())
+  featureFlag     FeatureFlag @relation("FlagDependencies", fields: [featureFlagId], references: [id], onDelete: Cascade)
+  dependsOnFlag   FeatureFlag @relation("FlagRequiredBy", fields: [dependsOnFlagId], references: [id], onDelete: Cascade)
+
+  @@unique([featureFlagId, dependsOnFlagId])
+}
+
+model Secret {
+  id                   String          @id @default(uuid())
+  applicationId        String
+  key                  String
+  encryptedValue       String
+  description          String?
+  rotationIntervalDays Int             @default(30)
+  lastRotatedAt        DateTime?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  application          Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  versions             SecretVersion[]
+  usages               SecretUsage[]
+
+  @@unique([applicationId, key])
+}
+
+model SecretVersion {
+  id             String   @id @default(uuid())
+  secretId       String
+  version        Int
+  encryptedValue String
+  createdById    String?
+  createdAt      DateTime @default(now())
+  secret         Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  createdBy      User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([secretId, version])
+}
+
+model SecretUsage {
+  id            String       @id @default(uuid())
+  secretId      String
+  applicationId String
+  environmentId String?
+  serviceName   String
+  createdAt     DateTime     @default(now())
+  secret        Secret       @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  environment   Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+}
+
+model Incident {
+  id            String         @id @default(uuid())
+  applicationId String
+  deploymentId  String?
+  title         String
+  status        IncidentStatus @default(OPEN)
+  startedAt     DateTime       @default(now())
+  resolvedAt    DateTime?
+  timelineJson  String
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  deployment    Deployment?    @relation(fields: [deploymentId], references: [id], onDelete: SetNull)
+}
+
+model AuditLogEntry {
+  id             String        @id @default(uuid())
+  organizationId String?
+  teamId         String?
+  applicationId  String?
+  environmentId  String?
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String
+  detailsJson    String?
+  createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  team           Team?         @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  application    Application?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  environment    Environment?  @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  actor          User?         @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, createdAt])
+}
