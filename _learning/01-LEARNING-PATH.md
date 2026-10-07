@@ -27,8 +27,8 @@ Read in order:
 Read in order:
 1. `guides/prisma/schema.prisma.guide.md` — The entire data model
 2. `guides/lib/prisma.js.guide.md` — How the app connects to the database
-3. `guides/prisma/seed.js.guide.md` — How sample data is created
-4. `guides/scripts/setup-db.js.guide.md` — How the database is initialized
+3. `../prisma/seed.js` (no guide was generated — read the source) — How sample data is created
+4. `../scripts/setup-db.js` (no guide was generated — read the source) — How the database is initialized
 
 **Checkpoint:** After this chapter you should understand:
 - What an ORM is and why Prisma is used
@@ -103,7 +103,7 @@ Read in order:
 1. `guides/app/api/bootstrap/route.js.guide.md` — The big data-loading endpoint
 2. `guides/app/api/applications/route.js.guide.md` — CRUD for applications
 3. `guides/app/api/environments/route.js.guide.md` — Environment management
-4. `guides/app/api/audit/route.js.guide.md` — Audit log queries and export
+4. `../app/api/audit/route.js` (no guide was generated — read the source) — Audit log queries and export
 
 **Checkpoint:** After this chapter you should understand:
 - How Next.js API routes work (export named HTTP method functions)
@@ -119,11 +119,11 @@ Read in order:
 **Goal:** Understand the most complex workflow in the app: deploying code.
 
 Read in order:
-1. `guides/app/api/deployments/route.js.guide.md` — Creating and listing deployments
-2. `guides/app/api/deployments/[id]/route.js.guide.md` — Transitioning deployment status
+1. `../app/api/deployments/route.js` (no guide was generated — read the source) — Creating and listing deployments
+2. `../app/api/deployments/[id]/route.js` (no guide was generated — read the source) — Transitioning deployment status
 3. `guides/app/api/deployments/[id]/rollback/route.js.guide.md` — Rolling back
-4. `guides/app/api/deployments/[id]/logs/route.js.guide.md` — Fetching logs
-5. `guides/app/api/deployments/[id]/logs/stream/route.js.guide.md` — **Server-Sent Events (SSE)**
+4. `../app/api/deployments/[id]/logs/route.js` (no guide was generated — read the source) — Fetching logs
+5. `../app/api/deployments/[id]/logs/stream/route.js` (no guide was generated — read the source) — **Server-Sent Events (SSE)**
 
 **Checkpoint:** After this chapter you should understand:
 - How dynamic route segments (`[id]`) work in Next.js
@@ -139,10 +139,10 @@ Read in order:
 **Goal:** Fill out your understanding of the remaining API endpoints.
 
 Read in order:
-1. `guides/app/api/pipelines/route.js.guide.md` — Pipeline editing with transactions
-2. `guides/app/api/monitoring/route.js.guide.md` — Metrics and health checks
-3. `guides/app/api/feature-flags/route.js.guide.md` — Feature flags with dependency checks
-4. `guides/app/api/secrets/route.js.guide.md` — Encrypted secret management
+1. `../app/api/pipelines/route.js` (no guide was generated — read the source) — Pipeline editing with transactions
+2. `../app/api/monitoring/route.js` (no guide was generated — read the source) — Metrics and health checks
+3. `../app/api/feature-flags/route.js` (no guide was generated — read the source) — Feature flags with dependency checks
+4. `../app/api/secrets/route.js` (no guide was generated — read the source) — Encrypted secret management
 
 **Checkpoint:** After this chapter you should understand:
 - How database transactions ensure atomic operations
@@ -157,10 +157,10 @@ Read in order:
 **Goal:** Understand how the same backend serves both a web UI and a CLI tool.
 
 Read in order:
-1. `guides/app/api/cli/deploy/route.js.guide.md`
-2. `guides/app/api/cli/env/route.js.guide.md`
-3. `guides/app/api/cli/logs/route.js.guide.md`
-4. `guides/app/api/cli/rollback/route.js.guide.md`
+1. `../app/api/cli/deploy/route.js` (no guide was generated — read the source)
+2. `../app/api/cli/env/route.js` (no guide was generated — read the source)
+3. `../app/api/cli/logs/route.js` (no guide was generated — read the source)
+4. `../app/api/cli/rollback/route.js` (no guide was generated — read the source)
 
 **Checkpoint:** After this chapter you should understand:
 - Why CLI and web UI endpoints are separate despite similar logic
@@ -192,8 +192,8 @@ Read in order:
 
 Read in order:
 1. `guides/components/deployment-timeline.jsx.guide.md` — Deployment cards with state transitions
-2. `guides/components/environment-panel.jsx.guide.md` — Environment variables and deploy locks
-3. `guides/components/pipeline-graph.jsx.guide.md` — DAG visualization with React Flow
+2. `../components/environment-panel.jsx` (no guide was generated — read the source) — Environment variables and deploy locks
+3. `../components/pipeline-graph.jsx` (no guide was generated — read the source) — DAG visualization with React Flow
 4. `guides/components/log-stream-panel.jsx.guide.md` — **Virtualized log streaming**
 
 **Checkpoint:** After this chapter you should understand:
@@ -213,8 +213,8 @@ Read in order:
 Read in order:
 1. `guides/components/monitoring-panel.jsx.guide.md` — Charts with Recharts
 2. `guides/components/feature-flags-panel.jsx.guide.md` — Flag management UI
-3. `guides/components/secrets-panel.jsx.guide.md` — Secret creation and rotation
-4. `guides/components/audit-panel.jsx.guide.md` — Audit log display
+3. `../components/secrets-panel.jsx` (no guide was generated — read the source) — Secret creation and rotation
+4. `../components/audit-panel.jsx` (no guide was generated — read the source) — Audit log display
 
 **Checkpoint:** After this chapter you should understand:
 - How Recharts renders responsive line charts with dual Y-axes

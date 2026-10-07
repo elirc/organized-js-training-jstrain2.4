@@ -48,3 +48,7 @@ This environment had Prisma schema-engine issues with `prisma db push` and `pris
 - `npm run db:seed` - seed sample platform data
 - `npm run lint` - lint check
 - `npm run build` - production build
+
+## About this snapshot
+
+This repository is a snapshot of [elirc/jstrain2.4](https://github.com/elirc/jstrain2.4), taken before that repo added its `astraupskill/` course, two `tests/` files, and an application/environment match check in `POST /api/deployments`. Every other file matches. The learning-path link fixes from its 2026-10 doc pass were ported here; `_learning/00-ARCHITECTURE.md` describes the check as a known gap, because this code does not have it yet. Checked on 2026-10-06.

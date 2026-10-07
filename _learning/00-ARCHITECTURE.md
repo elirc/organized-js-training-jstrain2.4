@@ -90,13 +90,17 @@ Next.js App Router matches `/api/deployments` to `app/api/deployments/route.js` 
 The handler uses **Zod** to validate the incoming JSON against `createDeploymentSchema`. If validation fails, it immediately returns a 400 error with details.
 
 ### 5. Authentication / Authorization
-- `getActor(request)` looks up the current user from the `x-user-email` header (or defaults to the first user — this is a dev MVP, not production auth).
+- Before any role check, the handler loads the environment with `findUnique({ where: { id: environmentId } })` (`app/api/deployments/route.js:48-55`). **Known gap (checked 2026-10-06):** that lookup does not also match `applicationId`, so a request can pair app A's `applicationId` with app B's `environmentId`. The role checks below then run against app B's team (`environment.application.teamId`), and `createDeployment` (`lib/platform-service.js:25`) still writes the row and audit entry under app A. The maintained repo, [elirc/jstrain2.4](https://github.com/elirc/jstrain2.4), later added `applicationId` to that `where` clause so a mismatched pair returns 404.
+- `getActor(request)` (`lib/session.js:3-18`) looks up the user named by the `x-user-email` header, using `owner@acme.dev` when the header is missing. If no user has that email, it falls back to the oldest user (`findFirst` ordered by `createdAt`). So any unknown email, such as `x-user-email: nobody@example.com`, acts as the first seeded user. This is a dev MVP, not production auth.
 - `getTeamRole()` checks what role that user has on the team that owns the app.
 - `canPerform(role, "deploy")` checks the RBAC permission table.
 - `canDeployToEnvironment(role, envSlug)` checks environment-level permissions (e.g., VIEWERs can't deploy anywhere, DEPLOYERs can't deploy to production).
 
 ### 6. Business logic checks
-The handler checks if the environment is deploy-locked or if the application has a code freeze (`deployFrozen`). If so, it returns HTTP 423 (Locked).
+The handler checks if the environment is deploy-locked or if the application has a code freeze (`deployFrozen`). If so, it returns HTTP 423 (Locked) (`app/api/deployments/route.js:77-85`). Note that `environment.application` is the application that owns the *environment*. Combined with the gap in step 5, a deployment for a frozen app A can get past this check if it names an environment of an unfrozen app B.
+
+**Exercise.** Goal: close both gaps in this handler without changing its response shape for valid requests.
+**Check:** after adding `applicationId: parsed.data.applicationId` to the `where` on line 49 (switch `findUnique` to `findFirst` if Prisma rejects a non-unique field there), a `POST /api/deployments` whose `environmentId` belongs to a different application returns 404, and `SELECT COUNT(*) FROM Deployment` is unchanged. Then send `x-user-email: nobody@example.com` and confirm the request is rejected instead of running as the oldest user (that second fix belongs in `lib/session.js`).
 
 ### 7. Service layer creates the deployment
 `createDeployment()` in `lib/platform-service.js`:
